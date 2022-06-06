@@ -4,6 +4,7 @@ from __future__ import annotations
 import dataclasses
 import os
 import re
+import sys
 import typing as t
 
 from . import (
@@ -60,9 +61,15 @@ class MypyTest(SanityMultipleVersion):
     """Sanity test which executes mypy."""
     ansible_only = True
 
+    vendored_paths = (
+        'lib/ansible/module_utils/six/__init__.py',
+        'lib/ansible/module_utils/distro/_distro.py',
+        'lib/ansible/module_utils/compat/_selectors2.py',
+    )
+
     def filter_targets(self, targets):  # type: (t.List[TestTarget]) -> t.List[TestTarget]
         """Return the given list of test targets, filtered to include only those relevant for the test."""
-        return [target for target in targets if os.path.splitext(target.path)[1] == '.py' and (
+        return [target for target in targets if os.path.splitext(target.path)[1] == '.py' and target.path not in self.vendored_paths and (
                 target.path.startswith('lib/ansible/') or target.path.startswith('test/lib/ansible_test/_internal/')
                 or target.path.startswith('test/lib/ansible_test/_util/target/sanity/import/'))]
 
@@ -77,6 +84,10 @@ class MypyTest(SanityMultipleVersion):
         return True
 
     def test(self, args, targets, python):  # type: (SanityConfig, SanityTargets, PythonConfig) -> TestResult
+        if sys.version_info >= (3, 11):
+            display.warning(f'Skipping sanity test "{self.name}" which can test Python {args.controller_python.version}, but cannot run under that version.')
+            return SanitySkipped(self.name, python.version)
+
         settings = self.load_processor(args, python.version)
 
         paths = [target.path for target in targets.include]

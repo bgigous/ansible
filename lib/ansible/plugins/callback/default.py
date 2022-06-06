@@ -114,13 +114,13 @@ class CallbackModule(CallbackBase):
             if self._last_task_banner != result._task._uuid:
                 self._print_task_banner(result._task)
 
-            if result._task.loop and 'results' in result._result:
+            if result._task.loop is not None and 'results' in result._result:
                 self._process_items(result)
-            else:
-                msg = "skipping: [%s]" % result._host.get_name()
-                if self._run_is_verbose(result):
-                    msg += " => %s" % self._dump_results(result._result)
-                self._display.display(msg, color=C.COLOR_SKIP)
+
+            msg = "skipping: [%s]" % result._host.get_name()
+            if self._run_is_verbose(result):
+                msg += " => %s" % self._dump_results(result._result)
+            self._display.display(msg, color=C.COLOR_SKIP)
 
     def v2_runner_on_unreachable(self, result):
         if self._last_task_banner != result._task._uuid:
@@ -129,6 +129,9 @@ class CallbackModule(CallbackBase):
         host_label = self.host_label(result)
         msg = "fatal: [%s]: UNREACHABLE! => %s" % (host_label, self._dump_results(result._result))
         self._display.display(msg, color=C.COLOR_UNREACHABLE, stderr=self.get_option('display_failed_stderr'))
+
+        if result._task.ignore_unreachable:
+            self._display.display("...ignoring", color=C.COLOR_SKIP)
 
     def v2_playbook_on_no_hosts_matched(self):
         self._display.display("skipping: no hosts matched", color=C.COLOR_SKIP)
